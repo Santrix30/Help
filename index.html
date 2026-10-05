@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAMIÓN SATURADO - MODO IMPARABLE</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #ff3333;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding-top: 10vh;
+            overflow: hidden;
+        }
+        h1 {
+            font-size: 3rem;
+            text-shadow: 0 0 10px #ff0000;
+            animation: shake 0.1s infinite;
+        }
+        p {
+            font-size: 1.2rem;
+            color: #ffcc00;
+        }
+        .warning {
+            border: 4px dashed #ff0000;
+            padding: 20px;
+            display: inline-block;
+            background-color: #220000;
+            box-shadow: 0 0 30px #ff0000;
+        }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            60% { transform: translate(-1px, 2px) rotate(0deg); }
+            80% { transform: translate(-3px, 1px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="warning">
+        <h1>¡BIP BIP! ¡PIIP! ¡CLAXON SATURADO!</h1>
+        <p>EL MOTOR ESTÁ AL LÍMITE. LOS FRENOS FALLARON.</p>
+        <p><strong>ESTO NO SE PUEDE PARAR.</strong></p>
+    </div>
+
+    <script>
+        // Inicializar el motor de audio web
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function iniciarCaosSonoro() {
+            // Asegurar que el contexto de audio esté activo
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // 1. Oscilador principal del motor (frecuencia baja y agresiva)
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth'; // Onda sierra para máxima saturación armónica
+            osc.frequency.setValueAtTime(75, audioCtx.currentTime); // Tono de motor pesado
+
+            // 2. Modulador de frecuencia (para imitar el traqueteo y aceleración caótica)
+            const modulator = audioCtx.createOscillator();
+            modulator.type = 'square';
+            modulator.frequency.setValueAtTime(12, audioCtx.currentTime);
+
+            const modDepth = audioCtx.createGain();
+            modDepth.gain.setValueAtTime(45, audioCtx.currentTime);
+
+            modulator.connect(modDepth);
+            modDepth.connect(osc.frequency);
+
+            // 3. Distorsión extrema (WaveShaper para saturar la señal al máximo)
+            const distortion = audioCtx.createWaveShaper();
+            distortion.curve = hacerCurvaDistorsion(400);
+
+            // 4. Filtro pasa-altos/bajos para hacerlo chillon y molesto
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.Q.setValueAtTime(3, audioCtx.currentTime);
+
+            // 5. Ganancia general (volumen alto)
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+
+            // Conexiones de nodos
+            osc.connect(filter);
+            filter.connect(distortion);
+            distortion.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // Arrancar osciladores
+            osc.start();
+            modulator.start();
+
+            // Bucle infinito para variar dinámicamente la locura del camión
+            setInterval(() => {
+                let freqAleatoria = 60 + Math.random() * 120;
+                osc.frequency.setTargetAtTime(freqAleatoria, audioCtx.currentTime, 0.05);
+                filter.frequency.setTargetAtTime(400 + Math.random() * 1500, audioCtx.currentTime, 0.05);
+            }, 100);
+        }
+
+        // Función matemática para generar una saturación/distorsión agresiva
+        function hacerCurvaDistorsion(amount) {
+            let k = typeof amount === 'number' ? amount : 50,
+                n_samples = 44100,
+                curve = new Float32Array(n_samples),
+                deg = Math.PI / 180;
+            for (let i = 0; i < n_samples; ++i) {
+                let x = (i * 2) / n_samples - 1;
+                curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        // Bloqueo total anti-paradas:
+        // Intenta reactivar o reiniciar el sonido ante cualquier intento de cierre o clic.
+        window.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        });
+
+        // Disparar automáticamente al cargar la página (los navegadores modernos exigen interacción previa, de ahí el truco del click global)
+        window.addEventListener('DOMContentLoaded', () => {
+            document.body.addEventListener('click', () => {
+                iniciarCaosSonoro();
+            }, { once: true });
+        });
+    </script>
+</body>
+</html>
